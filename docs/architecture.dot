@@ -1,0 +1,61 @@
+// B3-1 FATELIA on AWS — 아키텍처 다이어그램 원본 (graphviz)
+// 렌더: dot -Tpng -Gdpi=180 docs/architecture.dot -o docs/architecture.png
+digraph B3_1 {
+  graph [fontname="Noto Sans CJK KR", rankdir=LR, splines=ortho, nodesep=0.55, ranksep=0.9,
+         pad=0.4, bgcolor="white", labelloc=t, fontsize=22,
+         label=<<B>B3-1 · FATELIA 웹 서비스 인프라 (AWS 서울 리전)</B><BR/><FONT POINT-SIZE="13" COLOR="#555555">외부 요청 → IGW → Route Table → Public Subnet → Security Group → EC2(nginx → FATELIA)</FONT><BR/> >];
+  node  [fontname="Noto Sans CJK KR", fontsize=12, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#444444", penwidth=1.3];
+  edge  [fontname="Noto Sans CJK KR", fontsize=10.5, color="#333333", penwidth=1.4];
+
+  // ---------- 외부 ----------
+  subgraph cluster_internet {
+    label=<<B>Internet</B>>; style="rounded,dashed"; color="#888888"; fontsize=14;
+    user  [label=<<B>사용자 브라우저</B><BR/>http://&lt;퍼블릭IP&gt;<BR/>GET /health>, fillcolor="#eef6ff", color="#2f6fb0"];
+    admin [label=<<B>학습자 PC</B><BR/>SSH (내 IP/32 만 허용)>, fillcolor="#fff6e5", color="#c07a00"];
+    ext   [label=<<B>외부 API</B><BR/>AI API (OpenAI/Claude)<BR/>example.com 아웃바운드 확인>, fillcolor="#f2f2f2"];
+  }
+
+  // ---------- 리전 / VPC ----------
+  subgraph cluster_region {
+    label=<<B>AWS Region · ap-northeast-2 (서울)</B>>; style="rounded"; color="#ff9900"; penwidth=2; fontsize=14;
+
+    igw [label=<<B>Internet Gateway</B><BR/>b3-1-igw<BR/>(VPC에 Attach)>, fillcolor="#fff0d9", color="#ff9900"];
+
+    subgraph cluster_vpc {
+      label=<<B>VPC  10.0.0.0/16</B>  (b3-1-vpc)>; style="rounded"; color="#8c4fff"; penwidth=2; fontsize=13;
+
+      rt [label=<<B>Route Table</B> (b3-1-public-rt)<BR/>10.0.0.0/16 → local<BR/><B>0.0.0.0/0 → igw</B>>, fillcolor="#f4eeff", color="#8c4fff"];
+
+      subgraph cluster_subnet {
+        label=<<B>Public Subnet  10.0.1.0/24</B>  · ap-northeast-2a<BR/>퍼블릭 IPv4 자동 할당 ON>; style="rounded,filled"; fillcolor="#eefaf0"; color="#2e9e4f"; penwidth=2; fontsize=12;
+
+        subgraph cluster_sg {
+          label=<<B>Security Group  b3-1-web-sg</B><BR/>IN  80/tcp ← 0.0.0.0/0<BR/>IN  22/tcp ← 내 IP/32<BR/>OUT 전체 허용 (기본)>; style="rounded,dashed"; color="#d13212"; penwidth=2; fontsize=11.5;
+
+          subgraph cluster_ec2 {
+            label=<<B>EC2  t3.micro · Ubuntu 24.04 LTS</B><BR/>퍼블릭 IP x.x.x.x · EBS gp3 8GiB>; style="rounded,filled"; fillcolor="#ffffff"; color="#ff9900"; fontsize=11.5;
+            nginx [label=<<B>nginx :80</B><BR/>/health → 200 "OK"<BR/>/ → 프록시>, fillcolor="#e9f7ef", color="#2e9e4f"];
+            app   [label=<<B>FATELIA (Node.js)</B><BR/>127.0.0.1:3000<BR/>외부 비공개 · .env에 API 키>, fillcolor="#f3ecff", color="#6b3fbf"];
+          }
+        }
+      }
+    }
+  }
+
+  // ---------- IAM (데이터 경로 밖) ----------
+  iam [label=<<B>IAM 사용자 b3-1-operator</B><BR/>EC2·VPC·SG 작업만 허용 (서울 리전)<BR/>t2/t3.micro 외 인스턴스 생성 거부<BR/>AdministratorAccess 없음 · S3/RDS 권한 없음>, shape=note, fillcolor="#fdeeee", color="#d13212"];
+
+  // ---------- 인바운드 흐름 ----------
+  user  -> igw   [label=" ① HTTP :80", color="#2f6fb0", fontcolor="#2f6fb0", penwidth=2.2];
+  igw   -> rt    [label=" ② 퍼블릭IP→프라이빗IP 변환", color="#2f6fb0", fontcolor="#2f6fb0", penwidth=2.2];
+  rt    -> nginx [label=" ③ SG 80 허용 확인", color="#2f6fb0", fontcolor="#2f6fb0", penwidth=2.2];
+  nginx -> app   [label=" ④ proxy_pass", color="#2f6fb0", fontcolor="#2f6fb0", penwidth=2.2];
+
+  admin -> igw   [label=" SSH :22", color="#c07a00", fontcolor="#c07a00", style=dashed];
+
+  // ---------- 아웃바운드 ----------
+  app   -> ext   [xlabel=" 아웃바운드 HTTPS: RT 0.0.0.0/0 → IGW 경유 ", color="#777777", fontcolor="#777777", style=dotted, constraint=false];
+
+  // ---------- 관리 평면 ----------
+  iam   -> rt    [label=" 콘솔/API로 리소스 생성·삭제", color="#d13212", fontcolor="#d13212", style=dashed, constraint=false];
+}

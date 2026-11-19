@@ -1,0 +1,26 @@
+[Unit]
+Description=FATELIA web service (Node.js)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fatelia
+WorkingDirectory=/opt/fatelia
+# API 키 등 비밀값은 저장소가 아니라 서버의 /opt/fatelia/.env 에만 둔다 (chmod 640)
+EnvironmentFile=-/opt/fatelia/.env
+Environment=NODE_ENV=production
+Environment=PORT=__APP_PORT__
+# 외부에서는 nginx(80)만 접근하도록 앱은 루프백에만 바인딩되게 HOST도 지정 (앱이 HOST를 읽는 경우)
+Environment=HOST=127.0.0.1
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+RestartSec=5
+# 최소 권한: 앱 프로세스가 시스템 파일을 건드리지 못하게
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
