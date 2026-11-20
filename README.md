@@ -12,7 +12,7 @@ VPC로 격리된 네트워크 안의 퍼블릭 서브넷에 EC2 1대를 두고, 
 | 보조 확인 | `GET http://13.125.69.184/health` → `200 OK` / `OK` (nginx 고정 응답) |
 | 증빙 | `docs/screenshots/external-browser.png`, `docs/screenshots/ts1-after-200.png` |
 
-> 과금 방지를 위해 실습 종료 후 인스턴스를 종료했으므로, 위 주소는 **현재 접속되지 않는다.** 접속 사실은 스크린샷으로 증빙한다.
+> 동료평가 기간에는 서버를 운영해 위 주소로 실시간 접속을 확인할 수 있다. 평가 종료 후 `docs/cleanup-checklist.md` 순서대로 리소스를 정리하며, 이후에는 스크린샷이 접속 증빙이 된다.
 
 ![외부 접속 결과](docs/screenshots/external-browser.png)
 
@@ -87,11 +87,16 @@ bash ~/server/verify.sh
 | 트러블슈팅 보고서 | ✅ | `docs/troubleshooting.md` (사례 4건) |
 | 리소스 정리 | ☐ | `docs/cleanup-checklist.md` |
 
+## 확장·비용 대응
+
+현재는 `t3.micro` 1대 + SQLite 구조라 서버 1대가 단일 장애점이고 수평 확장이 불가능하다. 병목 진단 지표(CPU·CPU 크레딧·메모리·5xx·응답 시간)와 진단 순서, ALB 도입 기준과 설계(2개 AZ, SG 체인, `/health` 헬스체크), 비용 감시(Budgets·Cost Explorer·`Project=b3-1` 비용 할당 태그)는 [`docs/scaling-and-cost.md`](docs/scaling-and-cost.md)에 정리했다. 프리 티어 범위를 지키기 위해 이번 미션에서는 구현하지 않았다.
+
 ## 제출물
 
 - `docs/architecture.png` (원본 `docs/architecture.dot`)
 - `docs/troubleshooting.md`
 - `docs/cleanup-checklist.md`
 - `README.md` (이 문서)
+- docs/scaling-and-cost.md (확장·비용 대응 계획)
 
 > FATELIA 앱 소스는 별도 비공개 저장소에 있으며, 이 저장소에는 인프라·배포 설정과 증빙만 담았다. API 키 등 비밀값은 서버의 `/opt/fatelia/.env`에만 두고 어떤 저장소에도 커밋하지 않았다.
